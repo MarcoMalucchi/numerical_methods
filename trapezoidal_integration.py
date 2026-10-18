@@ -22,10 +22,7 @@ TRAPEZOIDAL and SIMPSON INTEGRATION SCRIPT.
 
 '''
 
-#NOTE: lenght_bin = (starting_poin - end_point)/n_bin
-
 import numpy as np
-import matplotlib.pyplot as plt
 
 # This function has the only task to compute the trapezoidal rule for a given function, a given number of bins, onto the function domain
 def trap_rule(function, n_bin, starting_poin, end_point, *args):
@@ -38,33 +35,45 @@ def trap_rule(function, n_bin, starting_poin, end_point, *args):
     f_a = function(starting_poin, *args)
     f_b = function(end_point, *args)
 
-    indices = np.linspace(1, n_bin, n_bin, False)
+    # indices = np.arange(1, n_bin)
 
-    sum = 0
+    # sum = 0
 
-    for i in indices:
-        sum += function(starting_poin + i*h, *args)
+    # for i in indices:
+    #     sum += function(starting_poin + i*h, *args)
+
+    x = np.linspace(starting_poin, end_point, n_bin + 1)
+    sum = np.sum(function(x, *args)[1:-1])
 
     I = h*(f_a/2 + f_b/2 + sum)
 
     return I
 
-# Integrand function
+# Integrand functions
 def line(x, m, q): return x*m + q
+
+# Parabola
+def parabola(x, r, s, t): return r*x**2 + s*x + t
 
 ## EXECUTION OF THE TRAP_RULE FUNCTION
 
 # Definition of relevant paramenters
-a = 1
-b = 20
-n_bins = 12800
+a = -10
+b = 5
+n_bins = 800
 
 # Integrand function paramenters
 m_param = 1
 q_param = 0
 
-I = b**2/2 - a**2/2
+r_param = 3.5
+s_param = .5
+t_param = 5
 
-I_num = trap_rule(line, n_bins, a, b, m_param, q_param)
+# Exact integral
+I = r_param*(b**3/3 - a**3/3) + s_param*(b**2/2 - + a**2/2) + t_param*(b - a)
 
-print(f'Numerical Intregral: {I_num}\nExact integral: {I}')
+# Numerical integral
+I_num = trap_rule(parabola, n_bins, a, b, r_param, s_param, t_param)
+
+print(f'Numerical Intregral: {I_num}\nExact integral: {I}\nError: {((I_num - I)/I)*100:.4f}%')
