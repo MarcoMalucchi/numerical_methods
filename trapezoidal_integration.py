@@ -22,7 +22,20 @@ TRAPEZOIDAL and SIMPSON INTEGRATION SCRIPT.
 
 '''
 
+'''
+GOOD-BEHAVE RULES FOR HIGHER PERFORMANCES
+
+1. Make the integrating functions evaluate the function on its domain as few times as possible.
+    It is a long task, even longer if n_bin is particularly high and the function is pretty complex
+
+2. Put every computation inside a one-kilometer long line DO NOT INCREASE THE SPEED OF YOUR CODE. Instead use the variables as placeholders
+when needed, so to enhance the readability and the clarity of the script!
+
+'''
+
 import numpy as np
+import matplotlib.pyplot as plt
+import warnings
 
 # This function has the only task to compute the trapezoidal rule for a given function, a given number of bins, onto the function domain
 def trap_rule(function, n_bin, starting_poin, end_point, *args):
@@ -32,8 +45,8 @@ def trap_rule(function, n_bin, starting_poin, end_point, *args):
 
     h = (end_point - starting_poin)/n_bin
 
-    f_a = function(starting_poin, *args)
-    f_b = function(end_point, *args)
+    x = np.linspace(starting_poin, end_point, n_bin + 1)
+    y = function(x, *args)
 
     # indices = np.arange(1, n_bin)
 
@@ -42,31 +55,68 @@ def trap_rule(function, n_bin, starting_poin, end_point, *args):
     # for i in indices:
     #     sum += function(starting_poin + i*h, *args)
 
-    x = np.linspace(starting_poin, end_point, n_bin + 1)
-    sum = np.sum(function(x, *args)[1:-1])
+    sum = np.sum(y[1:-1])
 
-    I = h*(f_a/2 + f_b/2 + sum)
+    I = h*((y[0] + y[-1])/2 + sum)
 
     return I
 
 def simpson_rule(function, n_bin, starting_poin, end_point, *args):
-    
-    if n_bins % 2 != 0:
+
+    if n_bin % 2 != 0:
         raise ValueError("Simpson's Rule requires an EVEN number of bins (n_bins).")
+    
+    x = np.linspace(starting_poin, end_point, n_bin + 1)
+    y = function(x, *args)
 
     h = (end_point - starting_poin)/n_bin
 
-    f_a = function(starting_poin, *args)
-    f_b = function(end_point, *args)
+    odd_sum = np.sum(y[1:-1:2])
+    even_sum = np.sum(y[2:-1:2])
 
-    x = np.linspace(starting_poin, end_point, n_bin + 1)
-
-    odd_sum = np.sum(function(x, *args)[1:-1:2])
-    even_sum = np.sum(function(x, *args)[2:-1:2])
-
-    I = h/3 * (f_a + f_b + 4*odd_sum + 2*even_sum)
+    I = h/3 * (y[0] + y[-1] + 4*odd_sum + 2*even_sum)
 
     return I
+
+def integration(function, starting_point, end_point, accuracy, INT_MODE: str, *args):
+
+    allowed_int_mode = {"trap", "simp"}
+
+    previous_integration = 0
+    current_integration = 0
+    error = float('inf')    #Start with infinite error so the while loop is forced to execute the first time, otherwise if error = 0 the
+                            # while loop will never start and the function will return only 0 and empty arrays
+    counter = 0
+    errors = np.array([])
+    n_bin = 10   #nominal starting number of bins of the first cycle of integration
+
+    if INT_MODE not in allowed_int_mode:
+        raise ValueError(f"Invalid mode: {INT_MODE}. Choose either 'trap' or 'simp'.")
+    elif INT_MODE == "trap":
+        while error > accuracy:
+            current_integration = trap_rule(function, n_bin, starting_point, end_point, *args)
+            error = abs(current_integration - previous_integration)/3
+            counter += 1
+            if counter > 1:
+                errors = np.append(errors, error)   # To disregard the first computed error, since it is equal to first-iteration integral
+            previous_integration = current_integration
+            n_bin *= 2
+            
+            
+
+    elif INT_MODE == "simp":
+        while error > accuracy:
+            current_integration = simpson_rule(function, n_bin, starting_point, end_point, *args)
+            error = abs(current_integration - previous_integration)/15
+            counter += 1
+            if counter > 1:
+                errors = np.append(errors, error)   # To disregard the first computed error, since it is equal to first-iteration integral
+            previous_integration = current_integration
+            n_bin *= 2
+
+    I = current_integration
+
+    return I, errors, counter
 
 
 # Integrand functions
@@ -75,12 +125,13 @@ def line(x, m, q): return x*m + q
 # Parabola
 def parabola(x, r, s, t): return r*x**2 + s*x + t
 
-## EXECUTION OF THE TRAP_RULE FUNCTION
+## EXECUTION OF THE NUMERICAL INTEGRATION
 
 # Definition of relevant paramenters
 a = -10
 b = 5
-n_bins = 801    #It MUST BE even
+n_bins = 800    #It MUST BE even
+accuracy = 1e-4
 
 # Integrand function paramenters
 m_param = .3
@@ -98,4 +149,46 @@ I_p = r_param*(b**3/3 - a**3/3) + s_param*(b**2/2 - + a**2/2) + t_param*(b - a)
 # Numerical integral
 I_num = simpson_rule(parabola, n_bins, a, b, r_param, s_param, t_param)
 
-print(f'Numerical Intregral: {I_num}\nExact integral: {I_p}\nError: {(abs(I_num - I_p)/I_p)*100:.4f}%')
+I, errors, counter = integration(parabola, a, b, accuracy, "trap", r_param, s_param, t_param)
+
+print(f'Numerical Intregral with Simpson: {I_num}\nExact integral: {I_p}\nError: {(abs(I_num - I_p)/I_p)*100:.4f}%\n')
+
+print(f'Numerical Intregral with iterations: {I}\n',
+      f'Exact integral: {I_p}\n',
+      f'Error: {(abs(I_num - I_p)/I_p)*100:.6f}%\n',
+      f'Iterations: {counter}')
+
+iteration = np.linspace(2, counter, counter-1)
+
+fig, ax = plt.subplots(figsize = (10,6), dpi=100)
+
+ax.plot(
+    iteration,
+    errors,
+    linestyle='--',
+    color='lightgrey',
+    linewidth=2,
+    marker='o',
+    markersize=8,
+    markerfacecolor='red',   # Inside of the marker is RED
+    markeredgecolor='black',  # Border of the marker is BLACK
+    label='Errors trend'
+)
+
+# Try-except block using the warning filter context manager
+try:
+    with warnings.catch_warnings():
+        # Treat all UserWarnings inside this block as explicit Exceptions
+        warnings.simplefilter("error", UserWarning)
+        
+        plt.yscale('log')  # This line will trigger the exception if a 0 is present
+
+except UserWarning:
+    print("⚠️ Caught a log-scale zero warning! Switching to 'symlog' scale automatically.")
+    # Fallback plan: symlog handles exact zeros perfectly without warning
+    plt.yscale('symlog')
+
+ax.set_xlabel("Iteration")
+ax.set_ylabel("Richardson Estimated Error")
+ax.legend()
+plt.show()
