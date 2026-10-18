@@ -49,6 +49,26 @@ def trap_rule(function, n_bin, starting_poin, end_point, *args):
 
     return I
 
+def simpson_rule(function, n_bin, starting_poin, end_point, *args):
+    
+    if n_bins % 2 != 0:
+        raise ValueError("Simpson's Rule requires an EVEN number of bins (n_bins).")
+
+    h = (end_point - starting_poin)/n_bin
+
+    f_a = function(starting_poin, *args)
+    f_b = function(end_point, *args)
+
+    x = np.linspace(starting_poin, end_point, n_bin + 1)
+
+    odd_sum = np.sum(function(x, *args)[1:-1:2])
+    even_sum = np.sum(function(x, *args)[2:-1:2])
+
+    I = h/3 * (f_a + f_b + 4*odd_sum + 2*even_sum)
+
+    return I
+
+
 # Integrand functions
 def line(x, m, q): return x*m + q
 
@@ -60,20 +80,22 @@ def parabola(x, r, s, t): return r*x**2 + s*x + t
 # Definition of relevant paramenters
 a = -10
 b = 5
-n_bins = 800
+n_bins = 801    #It MUST BE even
 
 # Integrand function paramenters
-m_param = 1
-q_param = 0
+m_param = .3
+q_param = 5
 
 r_param = 3.5
 s_param = .5
 t_param = 5
 
 # Exact integral
-I = r_param*(b**3/3 - a**3/3) + s_param*(b**2/2 - + a**2/2) + t_param*(b - a)
+I_l = m_param*(b**2/2 - a**2/2) + q_param*(b - a)
+
+I_p = r_param*(b**3/3 - a**3/3) + s_param*(b**2/2 - + a**2/2) + t_param*(b - a)
 
 # Numerical integral
-I_num = trap_rule(parabola, n_bins, a, b, r_param, s_param, t_param)
+I_num = simpson_rule(parabola, n_bins, a, b, r_param, s_param, t_param)
 
-print(f'Numerical Intregral: {I_num}\nExact integral: {I}\nError: {((I_num - I)/I)*100:.4f}%')
+print(f'Numerical Intregral: {I_num}\nExact integral: {I_p}\nError: {(abs(I_num - I_p)/I_p)*100:.4f}%')
