@@ -1,7 +1,7 @@
 import numpy  as np
 import matplotlib.pyplot as plt
 import scipy.integrate as integrate
-from integrators import iterate_trap, iterate_simp
+from integration.integrators import iterate_trap, iterate_simp
 
 '''
 FIRST EXERCISSE SSESSION IN CLASS.
