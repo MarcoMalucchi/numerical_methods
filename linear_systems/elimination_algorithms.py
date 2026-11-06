@@ -2,30 +2,39 @@ import numpy as np
 from numpy.typing import NDArray
 
 def Gauss_elimination(A: NDArray[np.float64]) -> NDArray[np.float64]:
-    C = np.array(A, dtype=float, copy=True) # Convert lists and int type arrays in float arrays
 
-    if C.ndim != 2:
-        raise ValueError("A must be two-dimensional.")
+    B = A.copy()
 
-    if C.shape[0] != C.shape[1]:
-        raise ValueError("A must be square.")
+    pivot_row  = 0  # To keep track of the row in which I am
 
-    for i in range(C.shape[0]):
-        # Let's start ordering the columns
-        where_max = i + np.argmax(abs(C[i:, i]))
+    pivot_cols = [] # To keep track of the columns in which there are pivots (at the end its lenght will return the rank of the matrix)
 
-        if C[where_max, i] == 0:
-            raise ValueError("Singular matrix: no nonzero pivot available.")
+    for col in range(B.shape[1]):
 
-        C[[i, where_max], :] = C[[where_max, i], :]
+        if pivot_row == B.shape[0]: # Obviously we must not continue iterating once the last has been reached, so we exist from the loop.
+            break
 
-        # Now we can proceed with the elimination
-        C[i,:] /= C[i,i]
+        where_max = pivot_row + np.argmax(abs(B[pivot_row:, col]))
 
-        for j in range(i + 1, C.shape[0]):
-            if C[j,i] == 0:
+        # What happens if my column has only zeros entries (in the rows I am considering)?
+
+        if B[where_max, col] == 0:
+            continue    # Stay on the same row (I don't change pivot_row) and skip to the next column
+        else:
+            B[[pivot_row, where_max], :] = B[[where_max, pivot_row], :] # Else proceed with the swapping
+
+        # Now we can proceed with the actual elimination elimination
+        B[pivot_row,:] /= B[pivot_row,col]  # Note also that now this operation never returns an error since with the control above I have already
+                                            # checked that B[pivot_row,col] != 0
+
+        for j in range(pivot_row + 1, B.shape[0]):
+            if B[j,col] == 0:
                 continue
             else:
-                C[j,:] -= C[j,i]*C[i,:]
+                B[j,:] -= B[j,col]*B[pivot_row,:]
         
-        return C
+        pivot_row += 1  # Finally I increment the pivot_row by one to move to the next row
+
+        pivot_cols.append(col)
+
+    return B, pivot_cols
