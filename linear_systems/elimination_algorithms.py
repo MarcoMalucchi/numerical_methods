@@ -23,7 +23,7 @@ def Gauss_elimination(A: NDArray[np.float64]) -> NDArray[np.float64]:
         else:
             B[[pivot_row, where_max], :] = B[[where_max, pivot_row], :] # Else proceed with the swapping
 
-        # Now we can proceed with the actual elimination elimination
+        # Now we can proceed with the actual elimination
         B[pivot_row,:] /= B[pivot_row,col]  # Note also that now this operation never returns an error since with the control above I have already
                                             # checked that B[pivot_row,col] != 0
 
@@ -38,3 +38,62 @@ def Gauss_elimination(A: NDArray[np.float64]) -> NDArray[np.float64]:
         pivot_cols.append(col)
 
     return B, pivot_cols
+
+
+def LU_decomposition(A: NDArray[np.float64]) -> NDArray[np.float64]:
+
+    U = A.copy()
+
+    m = A.shape[0]
+
+    L = np.eye(m , dtype = float)   # This command actually creates an mxm identity matrix
+    P = np.eye(m, dtype = float)    # P is the square matrix used to keep track of the rows swappings
+
+    pivot_row  = 0  # To keep track of the row in which I am
+
+    pivot_cols = []
+
+    for col in range(U.shape[1]):
+
+        # To save the single operations of the elimination algorithm.
+        L_i = np.eye(m, dtype = float)
+
+        if pivot_row == U.shape[0]: # Obviously we must not continue iterating once the last has been reached, so we exist from the loop.
+            break
+
+        where_max = pivot_row + np.argmax(abs(U[pivot_row:, col]))
+
+        # What happens if my column has only zeros entries (in the rows I am considering)?
+
+        if U[where_max, col] == 0:
+            continue    # Stay on the same row (I don't change pivot_row) and skip to the next column
+        else:
+            U[[pivot_row, where_max], :] = U[[where_max, pivot_row], :] # Else proceed with the swapping
+            # Saving the swapping of the rows
+            P[[pivot_row, where_max], :] = P[[where_max, pivot_row], :]
+            L[[pivot_row, where_max], :pivot_row] = L[[where_max, pivot_row], :pivot_row]
+
+        # Now we can proceed with the actual elimination
+        L_i[pivot_row,pivot_row] = U[pivot_row,col]    # Saving the reascaling of the row
+        U[pivot_row,:] /= U[pivot_row,col]  # Note also that now this operation never returns an error since with the control above I have already
+                                            # checked that B[pivot_row,col] != 0
+
+        for j in range(pivot_row + 1, U.shape[0]):
+            if U[j,col] == 0:
+                continue
+            else:
+                L_i[j,pivot_row] = U[j,col]   # saving the row operation
+                U[j,:] -= U[j,col]*U[pivot_row,:]
+
+        pivot_row += 1  # Finally I increment the pivot_row by one to move to the next row
+
+        pivot_cols.append(col)
+
+        L = L @ L_i # Updating of the general L matrix
+
+    # print(pivot_cols, len(pivot_cols))
+    # print(np.allclose(P @ A, L @ U))  # to double check
+
+    return L, U, P
+
+
