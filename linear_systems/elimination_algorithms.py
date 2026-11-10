@@ -97,3 +97,64 @@ def LU_decomposition(A: NDArray[np.float64]) -> NDArray[np.float64]:
     return L, U, P
 
 
+import numpy as np
+
+
+def gauss_jordan_inverse(A):
+    """Return the inverse of a real square matrix using partial pivoting.
+
+    Raise ValueError for invalid input and LinAlgError if elimination
+    encounters an exactly zero pivot.
+    """
+    U = np.array(A, dtype=float, copy=True)
+
+    if U.ndim != 2 or U.shape[0] != U.shape[1]:
+        raise ValueError("A must be a square two-dimensional matrix.")
+    if U.shape[0] == 0:
+        raise ValueError("A must have at least one row.")
+    if not np.isfinite(U).all():
+        raise ValueError("A must contain only finite entries.")
+
+    n = U.shape[0]
+    E = np.eye(n)
+
+    # Forward pass: normalise each pivot and eliminate below it.
+    # E records the row operations so that E @ A = U.
+    for i in range(n):
+        pivot_row = i + np.argmax(np.abs(U[i:, i]))
+        pivot = U[pivot_row, i]
+
+        if pivot == 0.0:
+            raise np.linalg.LinAlgError(
+                f"Matrix is singular: no nonzero pivot in column {i}."
+            )
+
+        U[[i, pivot_row], :] = U[[pivot_row, i], :]
+        E[[i, pivot_row], :] = E[[pivot_row, i], :]
+
+        E_i = np.eye(n)
+        E_i[i, i] = 1.0 / pivot
+        U[i, :] /= pivot
+
+        for j in range(i + 1, n):
+            entry = U[j, i]
+            # E_i acts on the pivot row before normalisation.
+            E_i[j, i] = -entry / pivot
+            U[j, :] -= entry * U[i, :]
+
+        E = E_i @ E
+
+    # Backward pass: clear the entries above each unit pivot.
+    for i in range(n - 1, 0, -1):
+        E_i = np.eye(n)
+
+        for j in range(i):
+            entry = U[j, i]
+            E_i[j, i] = -entry
+            U[j, :] -= entry * U[i, :]
+
+        E = E_i @ E
+
+    return E
+
+
