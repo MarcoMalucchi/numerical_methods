@@ -39,6 +39,53 @@ def Gauss_elimination(A: NDArray[np.float64]) -> NDArray[np.float64]:
 
     return B, pivot_cols
 
+def back_substitution(U, pivot_cols):
+    """Return a particular solution x and a null-space basis N.
+
+    U is the augmented echelon matrix with unit pivots.
+    Every solution has the form x + N @ t.
+    """
+    
+    n = U.shape[1] - 1
+
+    if n in pivot_cols:
+        raise ValueError("The system has no solution: a pivot is in the right-hand-side column.")
+
+    pivot_set = set(pivot_cols)
+    free_cols = [col for col in range(n) if col not in pivot_set]
+
+    x = np.zeros(n, dtype=float)
+    N = np.zeros((n, len(free_cols)), dtype=float)
+
+    for basis_col, free_col in enumerate(free_cols):
+        N[free_col, basis_col] = 1.0
+
+    for row in range(len(pivot_cols) - 1, -1, -1):
+        col = pivot_cols[row]
+        coefficients = U[row, col + 1:-1]
+
+        x[col] = U[row, -1] - coefficients @ x[col + 1:]
+        N[col, :] = -(coefficients @ N[col + 1:, :])
+
+    return x, N
+
+def Solve(A, b) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Return a particular solution x and a null-space basis N for A @ x = b."""
+    A = np.asarray(A, dtype=np.float64)
+    b = np.asarray(b, dtype=np.float64)
+
+    if A.ndim != 2:
+        raise ValueError("A must be a two-dimensional coefficient matrix.")
+    if b.shape != (A.shape[0],):
+        raise ValueError("b must be a one-dimensional array with one entry per row of A.")
+    if not np.isfinite(A).all() or not np.isfinite(b).all():
+        raise ValueError("A and b must contain only finite entries.")
+
+    augmented = np.column_stack((A, b))
+    U, pivot_cols = Gauss_elimination(augmented)
+    
+    return back_substitution(U, pivot_cols)
+
 
 def LU_decomposition(A: NDArray[np.float64]) -> NDArray[np.float64]:
 
@@ -95,10 +142,6 @@ def LU_decomposition(A: NDArray[np.float64]) -> NDArray[np.float64]:
     # print(np.allclose(P @ A, L @ U))  # to double check
 
     return L, U, P
-
-
-import numpy as np
-
 
 def gauss_jordan_inverse(A):
     """Return the inverse of a real square matrix using partial pivoting.
