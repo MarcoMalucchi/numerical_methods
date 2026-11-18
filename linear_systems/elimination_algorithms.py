@@ -1,7 +1,9 @@
 import numpy as np
 from numpy.typing import NDArray
 
-def Gauss_elimination(A: NDArray[np.float64]) -> NDArray[np.float64]:
+RealOrComplexArray = NDArray[np.float64] | NDArray[np.complex128]
+
+def Gauss_elimination(A: RealOrComplexArray) -> tuple[RealOrComplexArray, list[int]]:
 
     B = A.copy()
 
@@ -39,7 +41,7 @@ def Gauss_elimination(A: NDArray[np.float64]) -> NDArray[np.float64]:
 
     return B, pivot_cols
 
-def back_substitution(U, pivot_cols):
+def back_substitution(U: RealOrComplexArray, pivot_cols: list[int]) -> tuple[RealOrComplexArray, RealOrComplexArray]:
     """Return a particular solution x and a null-space basis N.
 
     U is the augmented echelon matrix with unit pivots.
@@ -54,8 +56,8 @@ def back_substitution(U, pivot_cols):
     pivot_set = set(pivot_cols)
     free_cols = [col for col in range(n) if col not in pivot_set]
 
-    x = np.zeros(n, dtype=float)
-    N = np.zeros((n, len(free_cols)), dtype=float)
+    x = np.zeros(n, dtype=U.dtype)
+    N = np.zeros((n, len(free_cols)), dtype=U.dtype)
 
     for basis_col, free_col in enumerate(free_cols):
         N[free_col, basis_col] = 1.0
@@ -69,10 +71,8 @@ def back_substitution(U, pivot_cols):
 
     return x, N
 
-def Solve(A, b) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+def Solve(A: RealOrComplexArray, b: RealOrComplexArray) -> tuple[RealOrComplexArray, RealOrComplexArray]:
     """Return a particular solution x and a null-space basis N for A @ x = b."""
-    A = np.asarray(A, dtype=np.float64)
-    b = np.asarray(b, dtype=np.float64)
 
     if A.ndim != 2:
         raise ValueError("A must be a two-dimensional coefficient matrix.")
@@ -87,13 +87,13 @@ def Solve(A, b) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     return back_substitution(U, pivot_cols)
 
 
-def LU_decomposition(A: NDArray[np.float64]) -> NDArray[np.float64]:
+def LU_decomposition(A: RealOrComplexArray) -> tuple[RealOrComplexArray, RealOrComplexArray, NDArray[np.float64]]:
 
     U = A.copy()
 
     m = A.shape[0]
 
-    L = np.eye(m , dtype = float)   # This command actually creates an mxm identity matrix
+    L = np.eye(m , dtype=U.dtype)   # This command actually creates an mxm identity matrix
     P = np.eye(m, dtype = float)    # P is the square matrix used to keep track of the rows swappings
 
     pivot_row  = 0  # To keep track of the row in which I am
@@ -103,7 +103,7 @@ def LU_decomposition(A: NDArray[np.float64]) -> NDArray[np.float64]:
     for col in range(U.shape[1]):
 
         # To save the single operations of the elimination algorithm.
-        L_i = np.eye(m, dtype = float)
+        L_i = np.eye(m, dtype = U.dtype)
 
         if pivot_row == U.shape[0]: # Obviously we must not continue iterating once the last has been reached, so we exist from the loop.
             break
@@ -143,13 +143,13 @@ def LU_decomposition(A: NDArray[np.float64]) -> NDArray[np.float64]:
 
     return L, U, P
 
-def gauss_jordan_inverse(A):
-    """Return the inverse of a real square matrix using partial pivoting.
+def gauss_jordan_inverse(A:  RealOrComplexArray) -> RealOrComplexArray:
+    """Return the inverse of a real or complex square matrix using partial pivoting.
 
     Raise ValueError for invalid input and LinAlgError if elimination
     encounters an exactly zero pivot.
     """
-    U = np.array(A, dtype=float, copy=True)
+    U = np.copy(A)
 
     if U.ndim != 2 or U.shape[0] != U.shape[1]:
         raise ValueError("A must be a square two-dimensional matrix.")
@@ -159,7 +159,7 @@ def gauss_jordan_inverse(A):
         raise ValueError("A must contain only finite entries.")
 
     n = U.shape[0]
-    E = np.eye(n)
+    E = np.eye(n, dtype=U.dtype)
 
     # Forward pass: normalise each pivot and eliminate below it.
     # E records the row operations so that E @ A = U.
@@ -175,7 +175,7 @@ def gauss_jordan_inverse(A):
         U[[i, pivot_row], :] = U[[pivot_row, i], :]
         E[[i, pivot_row], :] = E[[pivot_row, i], :]
 
-        E_i = np.eye(n)
+        E_i = np.eye(n, dtype=U.dtype)
         E_i[i, i] = 1.0 / pivot
         U[i, :] /= pivot
 
@@ -199,5 +199,20 @@ def gauss_jordan_inverse(A):
         E = E_i @ E
 
     return E
+
+if __name__ == 'main':
+    A = np.array([[1j, 2], [3, 1 - 1j]], dtype=np.complex128)
+    expected = np.array([1 - 2j, 2 + 1j])
+    b = A @ expected
+
+    x, N = Solve(A, b)
+    np.testing.assert_allclose(x, expected, atol=1e-12)
+    assert N.shape == (2, 0)
+
+    L, U, P = LU_decomposition(A)
+    np.testing.assert_allclose(L @ U, P @ A, atol=1e-12)
+
+    A_inv = gauss_jordan_inverse(A)
+    np.testing.assert_allclose(A @ A_inv, np.eye(2), atol=1e-12)
 
 
